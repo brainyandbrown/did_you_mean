@@ -1,30 +1,18 @@
 module DidYouMean
-  class SimilarMethodFinder
-    include BaseFinder
-    attr_reader :method_name, :receiver
-
+  class SimilarMethodFinder < BaseFinder
     def initialize(exception)
-      @method_name = exception.name
-      @receiver    = exception.receiver
-      @location    = exception.backtrace.first
-      @ivar_names  = SimilarNameFinder.new(exception).ivar_names
+      super
+      @location     = exception.backtrace.first
+      @method_names = MethodNameExtractor.new(receiver).method_names(name)
+      @ivar_names   = SimilarNameFinder.new(frame_binding).ivar_names
     end
 
     def searches
-      {
-        method_name        => method_names,
-        receiver_name.to_s => @ivar_names
-      }
-    end
-
-    def method_names
-      method_names = receiver.methods + receiver.singleton_methods
-      method_names.delete(method_name)
-      method_names.uniq.map {|name| MethodName.new(name.to_s) }
+      {method_name => @method_names, receiver_name => @ivar_names}
     end
 
     def receiver_name
-      return unless @receiver.nil?
+      return unless receiver.nil?
 
       abs_path, lineno, label =
         /(.*):(.*):in `(.*)'/ =~ @location && [$1, $2.to_i, $3]
@@ -41,7 +29,7 @@ module DidYouMean
           end if File.exist?(abs_path)
         end
 
-      /@(\w+)["|'|)]*\.#{@method_name}/ =~ line.to_s && $1
+      (/@(\w+)["|'|)]*\.#{name}/ =~ line.to_s && $1).to_s
     end
   end
 

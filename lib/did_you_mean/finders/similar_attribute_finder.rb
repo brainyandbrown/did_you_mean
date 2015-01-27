@@ -1,15 +1,13 @@
 module DidYouMean
-  class SimilarAttributeFinder
-    include BaseFinder
-    attr_reader :columns, :attribute_name
-
-    def initialize(exception)
-      @columns        = exception.frame_binding.eval("self.class").columns
-      @attribute_name = (/unknown attribute(: | ')(\w+)/ =~ exception.original_message) && $2
+  class SimilarAttributeFinder < BaseFinder
+    def initialize(*)
+      super
+      @attr_name    = (/unknown attribute(: | ')(\w+)/ =~ org_message && $2)
+      @column_names = BindingExtractor.new(frame_binding).column_names
     end
 
     def searches
-      {attribute_name => columns.map{|c| ColumnName.new(c.name, c.type)} }
+      {@attr_name => @column_names}
     end
   end
 end
